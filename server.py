@@ -2,20 +2,9 @@
 
 import sys
 from optparse import OptionParser
-import datetime
 
 from ServerKeys import wolfram_alpha_app_id
-
-def print_checkpoint(msg):
-    ''' Prints a checkpoint
-    Prints a timestamp and the provided message.
-    '''
-    time = datetime.datetime.now().time()
-    hour = str(time.hour)
-    minute = str(time.minute)
-    second = str(time.second)
-    time_format = '[' + hour + ':' + minute + ':' + second + ']'
-    print(time_format, msg)
+from lib import print_checkpoint
 
 def parse_args(args):
     ''' Parse command-line arguments and returns dictionary of arguments
