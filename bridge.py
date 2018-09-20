@@ -2,16 +2,16 @@
 import sys, socket, json
 from optparse import OptionParser
 from watson_developer_cloud import TextToSpeechV1
-from BridgeKeys import watson_username, watson_password
+from BridgeKeys import watson_api_key, watson_url
 
 
 tts_service = TextToSpeechV1(
-    username = watson_username,
-    password = watson_password)
-#with open('hello_world.wav', 'wb') as audio_file:
- #   audio_file.write(
-  #      tts_service.synthesize(
-   #         'Hello world', 'audio/wav', 'en-US_AllisonVoice').get_result().content)
+    iam_apikey = watson_api_key,
+    url = watson_url)
+with open('hello_world.wav', 'wb') as audio_file:
+    audio_file.write(
+        tts_service.synthesize(
+            'Hello world', 'audio/wav', 'en-GB_KateVoice').get_result().content)
 voices = tts_service.list_voices().get_result()
 print(json.dumps(voices, indent=2))
     
