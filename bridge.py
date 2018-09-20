@@ -1,11 +1,22 @@
 #!/usr/bin/env python3
-import sys, socket, BridgeKeys
+import sys, socket, json
 from optparse import OptionParser
 from watson_developer_cloud import TextToSpeechV1
+from BridgeKeys import watson_username, watson_password
 
 
+tts_service = TextToSpeechV1(
+    username = watson_username,
+    password = watson_password)
+#with open('hello_world.wav', 'wb') as audio_file:
+ #   audio_file.write(
+  #      tts_service.synthesize(
+   #         'Hello world', 'audio/wav', 'en-US_AllisonVoice').get_result().content)
+voices = tts_service.list_voices().get_result()
+print(json.dumps(voices, indent=2))
+    
 
-
+"""
 def parse_args(args):
     parser = OptionParser()
     parser.add_option("--svr-p", dest="server_port", help="server port", metavar="SVRPORT")
@@ -42,3 +53,4 @@ if __name__ == "__main__":
         client.close()
 
 
+"""
