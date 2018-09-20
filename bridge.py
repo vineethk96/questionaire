@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import sys, socket, BridgeKeys
 from optparse import OptionParser
+from watson_developer_cloud import TextToSpeechV1
+
+
 
 
 def parse_args(args):
@@ -16,18 +19,26 @@ def parse_args(args):
 if __name__ == "__main__":
     opts, args = parse_args(sys.argv[1])
     print(opts)
-    server_port = opts.server_port
+    server_port = int(opts.server_port)
     server_ip = opts.server_ip
-    bridge_port = opts.bridge_port
-    backlog_size = opts.backlog_size
-    socket_size = opts.socket_size
+    bridge_port = int(opts.bridge_port)
+    backlog_size = int(opts.backlog_size)
+    socket_size = int(opts.socket_size)
 
     try:
         sender = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    except socket.error, msg:
+    except socket.error as msg:
         print('Failed to create sockets. Error code: ' + str(msg[0]) + ', ' + msg[1])
         sys.exit();
     sender.connect((server_ip, server_port))
     listener.bind((socket.gethostname(), bridge_port))
-    listener.listen(backlog_size)
+    listener.listen(backlog_size)                   
+    while 1:
+        client, address = listener.accept()
+        data = conn.recv(socket_size)
+        if data:
+            client.send(data)
+        client.close()
+
+
