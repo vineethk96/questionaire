@@ -77,10 +77,12 @@ if __name__ == "__main__":
             print(err)
             listener.close()
 
-        chk_msg = 'Listening for client connections'
+        chk_msg = 'Listening for client connections\n'
         print_checkpoint(chk_msg)
 
         try:
+            chk_msg = 'Connecting to ' + server_ip + ' on port ' + server_port
+            print_checkpoint(chk_msg)
             sender.connect((server_ip, server_port))
             #test = 'What is the meaning of life?'
             #key = Fernet.generate_key()
@@ -122,35 +124,43 @@ if __name__ == "__main__":
                     
                     md5_hash = data['md5_hash']
                     m.update(text)
-                    print(m.hexdigest() + ' ' + md5_hash)
+
                     text_str = f.decrypt(text)
                     chk_msg = 'Decrypt: Key: ' + key.decode() + ' | Plaintext \n ' + text_str.decode()
                     print_checkpoint(chk_msg)
                     #token = f.encrypt(str.encode(text_str)
-                    
+                
                     if m.hexdigest() == md5_hash:
                         chk_msg = 'Speaking Question: ' + text.decode() + '\n'
                         print_checkpoint(chk_msg)
                         textToSpeech(text_str.decode())            
                         pickle_bytes = create_payload(key, text, m.hexdigest())
-                        print(m.hexdigest())
+
                         try:
+                            chk_msg = 'Sending data ' + pickle_bytes.decode() + '\n'
+                            print_checkpoint(chk_msg)
                             sender.send(pickle_bytes)
                             answer = sender.recv(socket_size)
+                            chk_msg = 'Received data ' + answer.decode()
                         except:
                             client.close()
                         answerLoads = pickle.loads(answer)
                         answ_text = answerLoads['text']
                         answ_md5_hash = answerLoads['md5_hash']
                         m1 = hashlib.md5()
-                        print(answ_text)
+
                         m1.update(answ_text)
-                        print(m1.hexdigest() + ' ' + answ_md5_hash)
+
                         if m1.hexdigest() == answ_md5_hash:
-                            print("IN THE IF STATEMENT")
+
                             answ_str = f.decrypt(answ_text)
+                            chk_msg = 'Decrypt: Using Key: ' + key.decode() + ' | Plaintext: ' + answ_text.decode()
+                            print_checkpoint(chk_msg)
+
+                            chk_msg = 'Speaking Answer: ' + answ_str.decode()
+                            print_checkpoint(chk_msg)
                             textToSpeech(answ_str.decode())
-                            print(str(answerLoads))
+                            
                             answ_pickle = create_payload('', answ_text, answ_md5_hash)
                             client.send(answ_pickle)
                         else:
