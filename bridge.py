@@ -18,8 +18,8 @@ def textToSpeech(text):
                 text, 'audio/wav', 'en-GB_KateVoice').get_result().content)
     os.system('aplay speech.wav')
     print("deleting")
-    #if os.path.exists("speech.wav"):
-        #os.remove("speech.wav")
+    if os.path.exists("speech.wav"):
+        os.remove("speech.wav")
 
 '''
 with open('hello_world.wav', 'wb') as audio_file:
@@ -43,7 +43,7 @@ def parse_args(args):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        textToSpeech('hello world')
+       # textToSpeech('hello world')
         
         opts, args = parse_args(sys.argv[1])
         print(opts)
