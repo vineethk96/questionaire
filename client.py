@@ -12,6 +12,7 @@ from ClientKeys import *        # keys imported
 
 from tweepy import Stream
 from tweepy.streaming import StreamListener
+from tweepy import OAuthHandler
 from cryptography.fernet import Fernet
 from hashlib import md5
 
@@ -19,6 +20,12 @@ from hashlib import md5
 #   "#ECE4564T18 Question Asked?"
 #   "Question Asked? #ECE4564T18"
 #   "#Question ECE4564T18 Asked?"
+
+payload = {}
+bridgeIP = ""
+port = 0
+size = 0
+hashtag = ""
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -34,63 +41,82 @@ def parse_args():
 class MyStreamListener(tweepy.StreamListener):
 
     def on_status(self, status):
-        get_tweet(status)
+        try:
+            get_tweet(status)
+        except KeyError as e:
+        return True
 
     def on_error(self, status_code):
         if status_code == 403:
             print("request was understood, but refused")
-            return false
-
-# sends payload to the bridge
-def clientToBridge(payload):
-    """
-    client socket
-    """
-    pickledVar = pickle.dumps(payload)      # pickle the payload
-
-    print(pickledVar)
-    print(bridgeIP)
-    print(port)
-    print(size)
-
-    host = bridgeIP
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    s.connect((host,port))
-    s.send(pickledVar)
-    data=s.recv(size)
-    s.close()
-    print('Recieved:', data)
-
-# returns the MD5 hash for the encrypted token
-def MD5_Hash(token, encoding='utf-8'):
-    return md5(token.encode(encoding)).hexdigest()
-
-# returns the dictionary containing the key and the encrypted token
-def fernetEncrypt(curr_tweet):
-    key = Fernet.generate_key()
-    f = Fernet(key)
-    token = f.encrypt(curr_tweet)
-    fernetDict = {'key' : key, 'token' : token}
-    return fernetDict
+            return False
 
 # strips the current tweet encrypts the token and preps payload for launch
 def get_tweet(tweet):
+
+    # Prepare to send to the socket
+    print("Listening for Tweets that contain " + hashtag)   #checkpoint 2
     
     curr_tweet = tweet.text
     
     # Tweet formatted to not include the hashtag anymore
     curr_tweet = curr_tweet.replace(hashtag, "")
     curr_tweet = curr_tweet.replace("  ", " ")
-    print(curr_tweet)
+    print("New Tweet: " + curr_tweet)   #checkpoint 3
 
     # Encryption
-    fernetDict = fernetEncrypt(curr_tweet)
-    MD5Hash = MD5_Hash(fernetDict['token'])
+    key = Fernet.generate_key()    
+    f = Fernet(key)
+    curr_tweet_as_bytes = str.encode(curr_tweet)
+    token = f.encrypt(curr_tweet_as_bytes)
+
+    fernetDict = {'key' : key, 'token' : token}
+
+    #checkpoint 4
+    print("Encrypt: Generated Key: " + str(key) + " | Ciphertext: " + str(token))
+
+    m = md5()
+    m.update(fernetDict['token'])
 
     # prep payload for launch
-    payload = {'crypt_key': fernetDict['key'], 'text': fernetDict['token'], 'md5_hash': MD5Hash}
-    clientToBridge(payload)
+    payload['crypt_key'] = fernetDict['key']
+    payload['text'] = fernetDict['token']
+    payload['md5_hash'] = m.hexdigest()
+
+    pickledVar = pickle.dumps(payload)      # pickle the payload
+
+    #checkpoint 5
+    print("Sending data: " + payload)
+    s.send(pickledVar)
+    data=s.recv(size)
+    #checkpoint 6
+    print("Recieved data: " + data)
+
+    # decrypt the payload and print to screen
+
+    depickledDict = pickle.loads(data)
+    
+    encryptAns_inBytes = depickledDict['text']
+    md5ans = depickledDict['md5_hash']
+
+    m1 = md5()
+
+    m1.update(encryptAns_inBytes)
+
+    print(m1.hexdigest())
+
+    if(m1.hexdigest() == md5ans):
+        print("md5 match")
+    else:
+        print("md5 did not match")
+
+    decryptAnsBytes = f.decrypt(encryptAns_inBytes)
+    decryptAns = decryptAnsBytes.decode()
+
+    #checkpoint 7
+    print("Decrypt: Using Key: " + str(key) + " | Plaintext: " + decryptAns)
+
+    return True
 
 
 if __name__ == "__main__":
@@ -102,17 +128,25 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         args = parse_args()    # decode the desired bridge ip
         bridgeIP = args.bridge_ip
-        port = args.bridge_port
-        size = args.socket_size
+        port = int(args.bridge_port)
+        size = int(args.socket_size)
         hashtag = args.hashtag
     else:
         print("INPUT ERROR HAS OCCURED")
+        # end program
 
+    host = bridgeIP
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    s.connect((host,port))
+    print("Connecting to " + bridgeIP + " on port " + str(port)) #checkpoint 1
+    
     # ** Create the stream **
-    myStreamListener = MyStreamListener()
+    myStreamListener = MyStreamListener()    
     myStream = tweepy.Stream(auth = api.auth, listener=myStreamListener)
-
 
     # ** Start the stream **
     myStream.filter(track=[hashtag])
+
+
 
