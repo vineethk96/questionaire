@@ -4,6 +4,7 @@ from optparse import OptionParser
 from watson_developer_cloud import TextToSpeechV1
 from BridgeKeys import watson_api_key, watson_url
 from cryptography.fernet import Fernet
+from lib import print_checkpoint
 
 tts_service = TextToSpeechV1(
     iam_apikey = watson_api_key,
@@ -29,7 +30,14 @@ with open('hello_world.wav', 'wb') as audio_file:
 voices = tts_service.list_voices().get_result()
 print(json.dumps(voices, indent=2))
 '''    
-
+def create_payload(crypt_key, text, md5_hash):
+    payload_dict = {}
+    if len(crypt_key) > 0:
+        payload_dict['crypt_key'] = key
+    payload_dict['text'] = text
+    payload_dict['md5_hash'] = md5_hash
+    pickle_bytes = pickle.dumps(payload_dict)
+    return pickle_bytes
 
 def parse_args(args):
     parser = OptionParser()
@@ -43,7 +51,6 @@ def parse_args(args):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-       # textToSpeech('hello world')
         
         opts, args = parse_args(sys.argv[1])
         print(opts)
@@ -52,63 +59,105 @@ if __name__ == "__main__":
         bridge_port = int(opts.bridge_port)
         backlog_size = int(opts.backlog_size)
         socket_size = int(opts.socket_size)
+        
         try:
             sender = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.error as msg:
             print('Failed to create sockets. Error code: ' + str(msg[0]) + ', ' + msg[1])
             sys.exit();
-       # sender.connect((server_ip, server_port))
-        listener.bind(('', bridge_port))
-        listener.listen(backlog_size)
-        client, address = listener.accept()
 
+        chk_msg = 'Created socket at 0.0.0.0 on port ' + str(server_port)
+        print_checkpoint(chk_msg)
+
+        try:
+            listener.bind(('', bridge_port))
+            listener.listen(backlog_size)
+        except Exception as err:
+            print(err)
+            listener.close()
+
+        chk_msg = 'Listening for client connections'
+        print_checkpoint(chk_msg)
+
+        try:
+            sender.connect((server_ip, server_port))
+            #test = 'What is the meaning of life?'
+            #key = Fernet.generate_key()
+            #f = Fernet(key)
+            #test = f.encrypt(b"what is the meaning of life")
+            #print("encrypted the text")
+            #m = hashlib.md5()
+            #m.update(test)
+            #print("created md5Hash")
+            #pickled = create_payload(key, test, m.hexdigest())
+            #test = pickle.dumps(pickled)
+            #sender.send(pickled)
+            #answer = sender.recv(socket_size)
+        except Exception as err:
+            print(err)
+            sender.close()
+
+        client, address = listener.accept()
+        chk_msg = 'Accepted client connection from ' + str(address) + ' on port ' + str(bridge_port)
+        print_checkpoint(chk_msg)
+
+        
         while 1:
             data = client.recv(socket_size)
+            
             if data:
-                data = pickle.loads(data)
-                print(str(data))
-                textToSpeech(data)
-                m = hashlib.md5()
                 
-        #        sender.send(data)
+                data = pickle.loads(data)
+                chk_msg = 'Received data ' + str(data)
+                print_checkpoint(chk_msg)
+
+                
+                m = hashlib.md5()
+
                 if data['crypt_key']:
                     key = data['crypt_key']
+                    f = Fernet(key)
                     text = data['text']
+                    
                     md5_hash = data['md5_hash']
-                    text = f.decrypt(text)
-                    token = f.encrypt(text)
-                    m.update(token)
+                    m.update(text)
+                    print(m.hexdigest() + ' ' + md5_hash)
+                    text_str = f.decrypt(text)
+                    chk_msg = 'Decrypt: Key: ' + key.decode() + ' | Plaintext \n ' + text_str.decode()
+                    print_checkpoint(chk_msg)
+                    #token = f.encrypt(str.encode(text_str)
+                    
                     if m.hexdigest() == md5_hash:
-                        textToSpeech(text)            
-            
-                        payload_dict = {}
-                        payload_dict['crypt_key'] = key
-                        payload_dict['text'] = token
-                        payload_dict['md5_hash'] = m.hexdigest()
-                        pickle_bytes = pickle.dumps(payload_dict)
-
-                        #sender.send(pickle_bytes)
-                        #answer = sender.recv(socket_size)
-
-                        #answerLoads = pickle.loads(answer)
-                        #answ_text = answerLoads['text']
-                        #answ_md5_hash = answerLoads['md5_hash']
-                        #m1 = hashlib.md5()
-                        #m1.update(answ_text)
-                        '''if m1.hexdigest() == answ_md5_hash:
+                        chk_msg = 'Speaking Question: ' + text.decode() + '\n'
+                        print_checkpoint(chk_msg)
+                        textToSpeech(text_str.decode())            
+                        pickle_bytes = create_payload(key, text, m.hexdigest())
+                        print(m.hexdigest())
+                        try:
+                            sender.send(pickle_bytes)
+                            answer = sender.recv(socket_size)
+                        except:
+                            client.close()
+                        answerLoads = pickle.loads(answer)
+                        answ_text = answerLoads['text']
+                        answ_md5_hash = answerLoads['md5_hash']
+                        m1 = hashlib.md5()
+                        print(answ_text)
+                        m1.update(answ_text)
+                        print(m1.hexdigest() + ' ' + answ_md5_hash)
+                        if m1.hexdigest() == answ_md5_hash:
+                            print("IN THE IF STATEMENT")
                             answ_str = f.decrypt(answ_text)
-                            textToSpeech(answ_str)
-                            answ_payload = {}
-                            answ_payload['text'] = answ_text
-                            answ_payload['md5_hash'] = answ_md5_hash
-                            answ_pickle = pickle.dumps(answ_payload)
+                            textToSpeech(answ_str.decode())
+                            print(str(answerLoads))
+                            answ_pickle = create_payload('', answ_text, answ_md5_hash)
                             client.send(answ_pickle)
                         else:
                             print("incorrect checksum")
                     else:
                         print("incorrect checksum")
-            '''
+            
 
 
 
