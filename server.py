@@ -58,9 +58,9 @@ class Server:
             raise socket.error("No data received")
         data = pickle.loads(data)
         print_checkpoint("Received data: " + str(data))
-        m = hashlib.md5()
-        m.update(data["text"])
-        if m.hexdigest() != data["md5_hash"]:
+        m_question = hashlib.md5()
+        m_question.update(data["text"])
+        if m_question.hexdigest() != data["md5_hash"]:
             raise ValueError("MD5 checksums on the encrypted question did"
                              + " not match")
         key = data["crypt_key"]
@@ -72,8 +72,9 @@ class Server:
         encrypted_answer = crypt_tool.encrypt(str.encode(answer))
         print_checkpoint("Encrypt: Key: " + key.decode() + " | Ciphertext "
                          + encrypted_answer.decode())
-        m.update(encrypted_answer)
-        md5_checksum = m.hexdigest()
+        m_answer = hashlib.md5()
+        m_answer.update(encrypted_answer)
+        md5_checksum = m_answer.hexdigest()
         print_checkpoint("Generated MD5 Checksum: " + md5_checksum)
         payload = {"text" : encrypted_answer, "md5_hash" : md5_checksum}
         serialized_payload = pickle.dumps(payload)
