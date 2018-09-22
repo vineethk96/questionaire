@@ -5,16 +5,15 @@ import tweepy
 import socket
 import pickle
 import hashlib
-
 import argparse
 
 from ClientKeys import *        # keys imported
-
 from tweepy import Stream
 from tweepy.streaming import StreamListener
 from tweepy import OAuthHandler
 from cryptography.fernet import Fernet
 from hashlib import md5
+from lib import print_checkpoint
 
 #Format of Question:
 #   "#ECE4564T18 Question Asked?"
@@ -44,7 +43,7 @@ class MyStreamListener(tweepy.StreamListener):
         try:
             get_tweet(status)
         except KeyError as e:
-        return True
+            return True
 
     def on_error(self, status_code):
         if status_code == 403:
@@ -55,14 +54,14 @@ class MyStreamListener(tweepy.StreamListener):
 def get_tweet(tweet):
 
     # Prepare to send to the socket
-    print("Listening for Tweets that contain " + hashtag)   #checkpoint 2
+    print_checkpoint("Listening for Tweets that contain: " + hashtag)
     
     curr_tweet = tweet.text
-    
+    print_checkpoint("New Tweet: " + curr_tweet)  #checkpoint 3
+
     # Tweet formatted to not include the hashtag anymore
     curr_tweet = curr_tweet.replace(hashtag, "")
     curr_tweet = curr_tweet.replace("  ", " ")
-    print("New Tweet: " + curr_tweet)   #checkpoint 3
 
     # Encryption
     key = Fernet.generate_key()    
@@ -73,7 +72,7 @@ def get_tweet(tweet):
     fernetDict = {'key' : key, 'token' : token}
 
     #checkpoint 4
-    print("Encrypt: Generated Key: " + str(key) + " | Ciphertext: " + str(token))
+    print_checkpoint("Encrypt: Generated Key: " + str(key) + " | Ciphertext: " + str(token))
 
     m = md5()
     m.update(fernetDict['token'])
@@ -86,11 +85,11 @@ def get_tweet(tweet):
     pickledVar = pickle.dumps(payload)      # pickle the payload
 
     #checkpoint 5
-    print("Sending data: " + payload)
+    print_checkpoint("Sending data: " + str(payload))
     s.send(pickledVar)
     data=s.recv(size)
     #checkpoint 6
-    print("Recieved data: " + data)
+    print_checkpoint("Recieved data: " + str(data))
 
     # decrypt the payload and print to screen
 
@@ -106,15 +105,15 @@ def get_tweet(tweet):
     print(m1.hexdigest())
 
     if(m1.hexdigest() == md5ans):
-        print("md5 match")
+        decryptAnsBytes = f.decrypt(encryptAns_inBytes)
+        decryptAns = decryptAnsBytes.decode()
+
+        #checkpoint 7
+        print_checkpoint("Decrypt: Using Key: " + str(key) + " | Plaintext: " + decryptAns)
+
     else:
         print("md5 did not match")
 
-    decryptAnsBytes = f.decrypt(encryptAns_inBytes)
-    decryptAns = decryptAnsBytes.decode()
-
-    #checkpoint 7
-    print("Decrypt: Using Key: " + str(key) + " | Plaintext: " + decryptAns)
 
     return True
 
@@ -139,7 +138,7 @@ if __name__ == "__main__":
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     s.connect((host,port))
-    print("Connecting to " + bridgeIP + " on port " + str(port)) #checkpoint 1
+    print_checkpoint("Connecting to " + bridgeIP + " on port " + str(port)) #checkpoint 1
     
     # ** Create the stream **
     myStreamListener = MyStreamListener()    
